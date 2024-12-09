@@ -1,3 +1,3 @@
 #!/bin/bash
 playwright install
-python bot_book_scrap.py
+python bot_book_scrape.py
