@@ -1,0 +1,5 @@
+playwright==1.37.0
+requests==2.31.0
+python-telegram-bot==20.3
+schedule==1.2.0
+asyncio==3.4.3
