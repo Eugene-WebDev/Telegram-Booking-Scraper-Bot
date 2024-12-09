@@ -102,7 +102,7 @@ async def job(location, checkin_dates):
         if os.path.exists(output_file):
             os.remove(output_file)
 
-    print(f"Задание завершено в {datetime.now("%H:%M")}")
+    print(f"Задание завершено в {datetime.now()}")
     # Automatically restart the bot to allow new scheduling
     print("Бот возвращается к состоянию ожидания команды /start.")
     os.system("python bot_book_scrape.py")  # Restart the script
