@@ -7,11 +7,28 @@ import time
 import re
 import csv
 import requests
-import threading
-import asyncio
-from keep_alive import keep_alive
 from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
 from book_test import scrape_booking_prices_playwright  # Updated import
+from flask import Flask
+import threading
+import asyncio
+
+# Create a Flask application
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+# Function to run the server
+def run_server():
+    app.run(host="0.0.0.0", port=8080)
+
+# Function to start the server in a thread
+def keep_alive():
+    server = threading.Thread(target=run_server)
+    server.daemon = True
+    server.start()
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -56,7 +73,6 @@ async def get_days(update: Update, context: CallbackContext) -> int:
         if user_input > 0:  # Allow any positive number
             days = user_input
             await update.message.reply_text(f"Запланировано на {days} дней. Задание будет выполнено в {schedule_time}.")
-            # Call the function to schedule the job in the main script
             schedule_job(schedule_time, days)
             await update.message.reply_text("Задание успешно запланировано. Вы можете снова запланировать задание, отправив команду /start.")
             return ConversationHandler.END
@@ -74,7 +90,7 @@ def schedule_job(schedule_time, days):
 
     # Schedule the job to run at the specified time
     target_datetime = schedule_time
-    schedule.every().day.at(target_datetime.strftime("%H:%M")).do(lambda: threading.Thread(target=asyncio.run, args=(job(location, checkin_dates),)).start())
+    schedule.every().day.at(target_datetime.strftime("%H:%M")).do(lambda: asyncio.run(job(location, checkin_dates)))
 
     # Keep the script running in the background
     print(f"Задание запланировано на {target_datetime}")
@@ -82,17 +98,17 @@ def schedule_job(schedule_time, days):
         schedule.run_pending()
         time.sleep(1)
 
-# Main job function (unchanged)
+# Main job function
 async def job(location, checkin_dates):
     print(f"Задание началось в {datetime.now()}")
     # Call the scraping function and process data
     prices_data = await scrape_booking_prices_playwright(location, checkin_dates)
-    
+
     for hotel_name, prices in prices_data.items():
         print(f"Обработка отеля: {hotel_name}")
         sanitized_hotel_name = re.sub(r"[^\w\s]", "", hotel_name).replace(" ", "_")
-        output_file = f"{sanitized_hotel_name}.csv"
-        
+        output_file = f"hotel_prices_{sanitized_hotel_name}.csv"
+
         with open(output_file, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(["Date", "Price"])
@@ -104,9 +120,6 @@ async def job(location, checkin_dates):
             os.remove(output_file)
 
     print(f"Задание завершено в {datetime.now()}")
-    # Automatically restart the bot to allow new scheduling
-    print("Бот возвращается к состоянию ожидания команды /start.")
-    os.system("python bot_book_scrape.py")  # Restart the script
 
 # Function to send a CSV file via Telegram
 def send_telegram_message(file_path, hotel_name):
@@ -114,7 +127,7 @@ def send_telegram_message(file_path, hotel_name):
         with open(file_path, "rb") as file:
             response = requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument",
-                data={"chat_id": TELEGRAM_CHAT_ID, "caption": f"Цены для {hotel_name}.\n Обновлено {datetime.now().strftime('%Y-%m-%d %H:%M')}"}, 
+                data={"chat_id": TELEGRAM_CHAT_ID, "caption": f"Цены на отели для {hotel_name}. Обновлено {datetime.now().strftime('%Y-%m-%d %H:%M')}"}, 
                 files={"document": file},
             )
         if response.status_code == 200:
@@ -138,7 +151,6 @@ conversation_handler = ConversationHandler(
 )
 
 application.add_handler(conversation_handler)
-application.run_polling()
 
 if __name__ == "__main__":
     # Start the HTTP server
