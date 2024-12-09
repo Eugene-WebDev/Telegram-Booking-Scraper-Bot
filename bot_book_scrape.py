@@ -9,26 +9,24 @@ import csv
 import requests
 from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
 from book_test import scrape_booking_prices_playwright  # Updated import
-from flask import Flask
+from flask import Flask, request
 import threading
+import json
 import asyncio
 
-# Create a Flask application
+# Create a Flask application to handle webhook requests
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Bot is running!"
+@app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
+def webhook():
+    json_str = request.get_data().decode('UTF-8')
+    update = Update.de_json(json.loads(json_str), application.bot)
+    application.dispatcher.process_update(update)
+    return 'ok', 200
 
-# Function to run the server
-def run_server():
-    app.run(host="0.0.0.0", port=8080)
-
-# Function to start the server in a thread
-def keep_alive():
-    server = threading.Thread(target=run_server)
-    server.daemon = True
-    server.start()
+# Function to start the Flask server in a thread
+def run_flask_app():
+    app.run(host="0.0.0.0", port=8080, debug=False)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -153,8 +151,13 @@ conversation_handler = ConversationHandler(
 application.add_handler(conversation_handler)
 
 if __name__ == "__main__":
-    # Start the HTTP server
-    keep_alive()
+    # Start the Flask app to handle webhook requests
+    threading.Thread(target=run_flask_app, daemon=True).start()
 
-    # Start the Telegram bot logic
-    application.run_polling()
+    # Start the webhook for the bot
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=8080,
+        url_path=TELEGRAM_BOT_TOKEN,  # Use your bot token as the URL path
+        webhook_url=f"https://scrape-project-qkwj.onrender.com/{TELEGRAM_BOT_TOKEN}",
+    )
