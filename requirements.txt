@@ -4,3 +4,4 @@ python-telegram-bot==20.3
 schedule==1.2.0
 asyncio==3.4.3
 flask
+python-telegram-bot[webhooks]==20.3
