@@ -9,6 +9,7 @@ import csv
 import requests
 import threading
 import asyncio
+from keep_alive import keep_alive
 from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
 from book_test import scrape_booking_prices_playwright  # Updated import
 
@@ -138,3 +139,10 @@ conversation_handler = ConversationHandler(
 
 application.add_handler(conversation_handler)
 application.run_polling()
+
+if __name__ == "__main__":
+    # Start the HTTP server
+    keep_alive()
+
+    # Start the Telegram bot logic
+    application.run_polling()
