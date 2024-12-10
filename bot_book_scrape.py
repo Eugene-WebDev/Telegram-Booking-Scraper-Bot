@@ -26,7 +26,7 @@ def webhook():
 
 # Function to start the Flask server in a thread
 def run_flask_app():
-    app.run(host="0.0.0.0", port=8082, debug=False)
+    app.run(host="0.0.0.0", port=8080, debug=False)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     # Start the webhook for the bot
     application.run_webhook(
         listen="0.0.0.0",
-        port=8082,
+        port=8080,
         url_path=TELEGRAM_BOT_TOKEN,  # Use your bot token as the URL path
         webhook_url=f"https://scrape-project-qkwj.onrender.com/{TELEGRAM_BOT_TOKEN}",
     )
