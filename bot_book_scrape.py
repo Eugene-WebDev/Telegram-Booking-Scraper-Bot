@@ -26,7 +26,7 @@ def webhook():
 
 # Function to start the Flask server in a thread
 def run_flask_app():
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=8081, debug=False)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -141,7 +141,7 @@ bot.delete_webhook()
 
 # Set up the bot with the conversation handler
 persistence = PicklePersistence("bot_data")
-application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).timeout(60).build()
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).build()
 
 
 
