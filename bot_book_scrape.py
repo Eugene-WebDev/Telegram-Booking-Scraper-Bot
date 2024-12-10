@@ -1,5 +1,5 @@
 from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, ConversationHandler, PicklePersistence
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, ConversationHandler, PicklePersistence
 from datetime import datetime, timedelta
 import os
 import schedule
@@ -27,9 +27,11 @@ def index():
 @app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
 def webhook():
     json_str = request.get_data().decode('UTF-8')
+    logging.info(f"Received webhook request: {json_str}")
     update = Update.de_json(json.loads(json_str), application.bot)
     asyncio.run(application.update_queue.put(update))  # Queue update for Telegram
     return 'ok', 200
+
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
 
@@ -39,8 +41,12 @@ days = None
 
 # Function to start the bot and prompt the user for input
 async def start(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("Добро пожаловать! \n\nПожалуйста, введите дату и время для планирования в формате 'YYYY-MM-DD HH:MM'.\n\n\n Внимание!!! Для 8 отелей на 90 дней программа займет + -4 часа, Планируйте с умом =)\n\n")
-    return WAITING_FOR_DATETIME
+    # Send a welcome message to the user
+    await update.message.reply_text(
+        "Добро пожаловать! \n\nПожалуйста, введите дату и время для планирования в формате 'YYYY-MM-DD HH:MM'.\n\n"
+        "Внимание!!! Для 8 отелей на 90 дней программа займет + -4 часа. Планируйте с умом."
+    )
+    return WAITING_FOR_DATETIME  # Indicate that the bot is waiting for the date and time input
 
 # Handler to get date and time from the user
 async def get_datetime(update: Update, context: CallbackContext) -> int:
@@ -149,6 +155,17 @@ asyncio.run(main())
 persistence = PicklePersistence("bot_data")
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).read_timeout(60).build()
 
-# Flask app handles the webhook
+# Register handlers for the conversation
+application.add_handler(CommandHandler("start", start))
+application.add_handler(ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        WAITING_FOR_DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_datetime)],
+        WAITING_FOR_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_days)]
+    },
+    fallbacks=[],
+))
+
+# Start the Flask app and webhook server
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8085, debug=False)
+    app.run(host="0.0.0.0", port=443, debug=False)
