@@ -163,9 +163,9 @@ application.add_handler(ConversationHandler(
         WAITING_FOR_DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_datetime)],
         WAITING_FOR_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_days)]
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("start", start)],
 ))
 
 # Start the Flask app and webhook server
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=443, debug=False)
+    app.run(host="0.0.0.0", port=8443, debug=False)
