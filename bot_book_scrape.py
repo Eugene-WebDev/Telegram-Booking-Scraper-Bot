@@ -7,12 +7,16 @@ import time
 import re
 import csv
 import requests
-from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
-from book_test import scrape_booking_prices_playwright  # Updated import
+from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
+from book_test import scrape_booking_prices_playwright
 from flask import Flask, request
 import threading
 import json
 import asyncio
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Create a Flask application to handle webhook requests
 app = Flask(__name__)
@@ -20,13 +24,10 @@ app = Flask(__name__)
 @app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
 def webhook():
     json_str = request.get_data().decode('UTF-8')
+    logging.info(f"Received update: {json_str}")
     update = Update.de_json(json.loads(json_str), application.bot)
     application.dispatcher.process_update(update)
     return 'ok', 200
-
-# Function to start the Flask server in a thread
-def run_flask_app():
-    app.run(host="0.0.0.0", port=8085, debug=False)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -91,19 +92,18 @@ def schedule_job(schedule_time, days):
     schedule.every().day.at(target_datetime.strftime("%H:%M")).do(lambda: asyncio.run(job(location, checkin_dates)))
 
     # Keep the script running in the background
-    print(f"Задание запланировано на {target_datetime}")
+    logging.info(f"Задание запланировано на {target_datetime}")
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 # Main job function
 async def job(location, checkin_dates):
-    print(f"Задание началось в {datetime.now()}")
-    # Call the scraping function and process data
+    logging.info(f"Задание началось в {datetime.now()}")
     prices_data = await scrape_booking_prices_playwright(location, checkin_dates)
 
     for hotel_name, prices in prices_data.items():
-        print(f"Обработка отеля: {hotel_name}")
+        logging.info(f"Обработка отеля: {hotel_name}")
         sanitized_hotel_name = re.sub(r"[^\w\s]", "", hotel_name).replace(" ", "_")
         output_file = f"hotel_prices_{sanitized_hotel_name}.csv"
 
@@ -117,7 +117,7 @@ async def job(location, checkin_dates):
         if os.path.exists(output_file):
             os.remove(output_file)
 
-    print(f"Задание завершено в {datetime.now()}")
+    logging.info(f"Задание завершено в {datetime.now()}")
 
 # Function to send a CSV file via Telegram
 def send_telegram_message(file_path, hotel_name):
@@ -125,34 +125,34 @@ def send_telegram_message(file_path, hotel_name):
         with open(file_path, "rb") as file:
             response = requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument",
-                data={"chat_id": TELEGRAM_CHAT_ID, "caption": f"Цены на отели для {hotel_name}. Обновлено {datetime.now().strftime('%Y-%m-%d %H:%M')}"}, 
+                data={"chat_id": TELEGRAM_CHAT_ID, "caption": f"Цены на отели для {hotel_name}. Обновлено {datetime.now().strftime('%Y-%m-%d %H:%M')}"},
                 files={"document": file},
             )
         if response.status_code == 200:
-            print(f"Файл {file_path} успешно отправлен в Telegram.")
+            logging.info(f"Файл {file_path} успешно отправлен в Telegram.")
         else:
-            print(f"Не удалось отправить файл. Код статуса: {response.status_code}, Ответ: {response.text}")
+            logging.error(f"Не удалось отправить файл. Код статуса: {response.status_code}, Ответ: {response.text}")
     except Exception as e:
-        print(f"Не удалось отправить файл: {e}")
+        logging.error(f"Не удалось отправить файл: {e}")
 
 # Delete existing webhook before starting a new one
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
-bot.delete_webhook()
+async def delete_webhook_async(bot):
+    await bot.delete_webhook()
+
+asyncio.run(delete_webhook_async(Bot(token=TELEGRAM_BOT_TOKEN)))
 
 # Set up the bot with the conversation handler
 persistence = PicklePersistence("bot_data")
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).read_timeout(60).build()
 
-
-
 # Start the Flask app and webhook server
 if __name__ == "__main__":
-    threading.Thread(target=run_flask_app, daemon=True).start()
+    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8085, debug=False), daemon=True).start()
 
     # Start the webhook for the bot
     application.run_webhook(
         listen="0.0.0.0",
-        port=8080,
-        url_path=TELEGRAM_BOT_TOKEN,  # Use your bot token as the URL path
-        webhook_url=f"https://scrape-project-qkwj.onrender.com/{TELEGRAM_BOT_TOKEN}",
+        port=8085,
+        url_path=TELEGRAM_BOT_TOKEN,
+        webhook_url=f"https://scrape-project-qkwj.onrender.com:8085/{TELEGRAM_BOT_TOKEN}",
     )
