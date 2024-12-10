@@ -12,6 +12,19 @@ import asyncio
 from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
 from book_test import scrape_booking_prices_playwright  # Updated import
 
+from flask import Flask
+from threading import Thread
+
+app = Flask(__name__)
+
+# Define a simple route for monitoring
+@app.route('/')
+def home():
+    return "Telegram Bot is running!"
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8443)
+
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
 
@@ -138,3 +151,9 @@ conversation_handler = ConversationHandler(
 
 application.add_handler(conversation_handler)
 application.run_polling()
+
+# Add Flask as a separate thread to avoid blocking the bot
+if __name__ == "__main__":
+    flask_thread = Thread(target=run_flask)
+    flask_thread.start()
+    application.run_polling()
