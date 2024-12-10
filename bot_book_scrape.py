@@ -20,6 +20,10 @@ logging.basicConfig(level=logging.INFO)
 # Create a Flask application to handle webhook requests
 app = Flask(__name__)
 
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot is running", 200
+
 @app.route(f'/{TELEGRAM_BOT_TOKEN}', methods=['POST'])
 def webhook():
     json_str = request.get_data().decode('UTF-8')
