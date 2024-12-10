@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, ConversationHandler, PicklePersistence
 from datetime import datetime, timedelta
 import os
@@ -26,7 +26,7 @@ def webhook():
 
 # Function to start the Flask server in a thread
 def run_flask_app():
-    app.run(host="0.0.0.0", port=8081, debug=False)
+    app.run(host="0.0.0.0", port=8080, debug=False)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -135,23 +135,21 @@ def send_telegram_message(file_path, hotel_name):
     except Exception as e:
         print(f"Не удалось отправить файл: {e}")
 
+# Delete existing webhook before starting a new one
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
+bot.delete_webhook()
+
 # Set up the bot with the conversation handler
 persistence = PicklePersistence("bot_data")
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).build()
 
-conversation_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={
-        WAITING_FOR_DATETIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_datetime)],
-        WAITING_FOR_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_days)],
-    },
-    fallbacks=[CommandHandler("start", start)],
-)
+# Define conversation states
+WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
+schedule_time = None
+days = None
 
-application.add_handler(conversation_handler)
-
+# Start the Flask app and webhook server
 if __name__ == "__main__":
-    # Start the Flask app to handle webhook requests
     threading.Thread(target=run_flask_app, daemon=True).start()
 
     # Start the webhook for the bot
