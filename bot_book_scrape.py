@@ -141,12 +141,9 @@ bot.delete_webhook()
 
 # Set up the bot with the conversation handler
 persistence = PicklePersistence("bot_data")
-application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).build()
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).timeout(60).build()
 
-# Define conversation states
-WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
-schedule_time = None
-days = None
+
 
 # Start the Flask app and webhook server
 if __name__ == "__main__":
