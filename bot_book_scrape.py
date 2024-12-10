@@ -1,28 +1,16 @@
-import asyncio
-import threading
-import schedule
-import time
-import csv
-import os
-import re
-import requests
-from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, ConversationHandler, PicklePersistence
+from datetime import datetime, timedelta
+import os
+import schedule
+import time
+import re
+import csv
+import requests
+import threading
+import asyncio
 from config import location, TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN  # Adjust this import according to your structure
 from book_test import scrape_booking_prices_playwright  # Updated import
-from flask import Flask
-
-# Define Flask App
-app = Flask(__name__)
-
-# Define a simple route for monitoring
-@app.route('/')
-def home():
-    return "Telegram Bot is running!"
-
-def run_flask():
-    app.run(host="0.0.0.0", port=8443)
 
 # States for the conversation handler
 WAITING_FOR_DATETIME, WAITING_FOR_DAYS = range(2)
@@ -68,7 +56,7 @@ async def get_days(update: Update, context: CallbackContext) -> int:
             days = user_input
             await update.message.reply_text(f"Запланировано на {days} дней. Задание будет выполнено в {schedule_time}.")
             # Call the function to schedule the job in the main script
-            await schedule_job(schedule_time, days)
+            schedule_job(schedule_time, days)
             await update.message.reply_text("Задание успешно запланировано. Вы можете снова запланировать задание, отправив команду /start.")
             return ConversationHandler.END
         else:
@@ -79,24 +67,19 @@ async def get_days(update: Update, context: CallbackContext) -> int:
         return WAITING_FOR_DAYS
 
 # Function to schedule the job based on user input
-async def schedule_job(schedule_time, days):
+def schedule_job(schedule_time, days):
     start_date = datetime.now()
     checkin_dates = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
-    
+
     # Schedule the job to run at the specified time
     target_datetime = schedule_time
-    print(f"Задание запланировано на {target_datetime}")
-
-    def run_scraping_job():
-        asyncio.create_task(job(location, checkin_dates))  # Schedule async job within the same event loop
-
-    # Schedule the job to run at the specified time
-    schedule.every().day.at(target_datetime.strftime("%H:%M")).do(run_scraping_job)
+    schedule.every().day.at(target_datetime.strftime("%H:%M")).do(lambda: threading.Thread(target=asyncio.run, args=(job(location, checkin_dates),)).start())
 
     # Keep the script running in the background
+    print(f"Задание запланировано на {target_datetime}")
     while True:
         schedule.run_pending()
-        await asyncio.sleep(1)  # Use asyncio.sleep instead of time.sleep for async-friendly code
+        time.sleep(1)
 
 # Main job function (unchanged)
 async def job(location, checkin_dates):
@@ -120,8 +103,11 @@ async def job(location, checkin_dates):
             os.remove(output_file)
 
     print(f"Задание завершено в {datetime.now()}")
+    # Automatically restart the bot to allow new scheduling
+    print("Бот возвращается к состоянию ожидания команды /start.")
+    os.system("python bot_book_scrape.py")  # Restart the script
 
-# Function to send a CSV file via Telegram (unchanged)
+# Function to send a CSV file via Telegram
 def send_telegram_message(file_path, hotel_name):
     try:
         with open(file_path, "rb") as file:
@@ -151,13 +137,4 @@ conversation_handler = ConversationHandler(
 )
 
 application.add_handler(conversation_handler)
-
-# Start Flask app in a separate thread
-def start_flask():
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
-
-# Start the bot and Flask app
-if __name__ == "__main__":
-    start_flask()  # Start Flask in background
-    application.run_polling()  # Start Telegram bot polling
+application.run_polling()
