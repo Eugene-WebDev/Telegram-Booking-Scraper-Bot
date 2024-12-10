@@ -141,7 +141,7 @@ bot.delete_webhook()
 
 # Set up the bot with the conversation handler
 persistence = PicklePersistence("bot_data")
-application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).build()
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).read_timeout(60).build()
 
 
 
