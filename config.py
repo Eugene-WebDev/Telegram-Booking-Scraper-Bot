@@ -12,13 +12,7 @@ hotel_names = [
 location = "Wroclaw"
 
 
-TELEGRAM_BOT_TOKEN = "7892367572:AAEgGgkh36zRhuMaCNKOkASICmxmjG46cDk"
-TELEGRAM_CHAT_ID = "5567412317"
+TELEGRAM_BOT_TOKEN = ""
+TELEGRAM_CHAT_ID = ""
 
 
-"""monopol-wroclaw",
-    "puro-wroclaw",
-    "korona-market-square-wroclaw",
-    "qubuswroclaw",
-    "arthotelwroclaw",
-    "grand-city-wroclaw"""
